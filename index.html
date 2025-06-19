@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTI Mindtree Assessment Practice</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .quiz-container {
+            max-width: 900px;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            box-sizing: border-box;
+        }
+        .module-section {
+            display: none; /* Hidden by default, shown by JS */
+        }
+        .question-item {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+            display: none; /* Hidden by default for 1-by-1 display */
+        }
+        .option-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+        .option-label:hover {
+            background-color: #edf2f7;
+        }
+        .option-label input[type="radio"] {
+            margin-right: 10px;
+            accent-color: #3b82f6; /* Blue accent for radio buttons */
+        }
+        .button {
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .button:hover {
+            transform: translateY(-1px);
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .results-section {
+            display: none;
+        }
+        .result-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+        .result-item.correct-answer {
+            background-color: #d1fae5; /* Green light */
+            border: 1px solid #34d399; /* Green border */
+        }
+        .result-item.incorrect-answer {
+            background-color: #fee2e2; /* Red light */
+            border: 1px solid #ef4444; /* Red border */
+        }
+        /* Webcam feed styling */
+        #webcam-feed {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 150px;
+            height: 112px; /* 4:3 aspect ratio for common webcams */
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 2px solid #3b82f6;
+            object-fit: cover; /* Ensures video covers area without distortion */
+            z-index: 10; /* Ensure it stays on top */
+            display: none; /* Hidden by default */
+        }
+        /* Overlay for warning messages */
+        .warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none; /* Hidden by default */
+        }
+        .warning-box {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+        }
+        /* Initial landing screen */
+        #landing-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div id="quiz-app" class="quiz-container">
+        <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">LTI Mindtree Assessment Practice</h1>
+
+        <!-- Landing Screen -->
+        <div id="landing-screen">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Welcome to the Practice Assessment!</h2>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                This practice test simulates conditions similar to an actual online proctored exam.
+                Please note the following:
+            </p>
+            <ul class="list-disc list-inside text-gray-600 text-left mb-6 space-y-2">
+                <li>Each module has a time limit of **25 minutes**.</li>
+                <li>Upon starting, the test will attempt to go **fullscreen**. Please allow it.</li>
+                <li>Your **webcam will activate** to simulate proctoring.</li>
+                <li>Attempting to **switch tabs** or **exit fullscreen** will trigger a warning. Repeated violations might lead to early submission.</li>
+            </ul>
+            <button id="start-exam-btn" class="button bg-green-600 text-white px-8 py-4 rounded-md font-semibold text-xl hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-opacity-50">
+                Start Exam
+            </button>
+        </div>
+
+        <!-- Module Progress and Timer -->
+        <div id="quiz-header" class="mb-6 bg-blue-100 p-4 rounded-lg flex justify-between items-center shadow-sm hidden">
+            <div class="text-blue-700 font-semibold text-lg">
+                Module: <span id="module-title"></span>
+            </div>
+            <div class="text-blue-700 font-semibold text-lg">
+                Time Left: <span id="timer">25:00</span>
+            </div>
+        </div>
+
+        <!-- Modules Container -->
+        <div id="modules-container" class="hidden">
+            <!-- English Comprehension Module -->
+            <div id="module-english-comprehension" class="module-section">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">English Comprehension</h2>
+                <div class="passage-box bg-gray-50 p-6 rounded-lg mb-6 border border-gray-200">
+                    <p class="text-gray-700 leading-relaxed text-justify">
+                        The rise of artificial intelligence (AI) has sparked considerable debate about its potential impact on employment. While some envision a future where AI automates most routine tasks, leading to widespread job displacement, others argue that AI will primarily augment human capabilities, creating new jobs and increasing productivity. Historically, technological revolutions have often led to a shift in labor demands rather than outright job destruction. The agricultural revolution, for instance, drastically reduced the need for farm labor but simultaneously spurred the growth of industries like manufacturing. Similarly, the advent of computers did not eliminate clerical jobs but transformed them, requiring new skills.
+                    </p>
+                    <p class="text-gray-700 leading-relaxed text-justify mt-4">
+                        However, the speed and scale of AI adoption present unique challenges. The transition period could be disruptive, necessitating significant investment in education and retraining programs to equip the workforce with AI-compatible skills. Furthermore, the ethical implications of AI, such as algorithmic bias and the concentration of wealth among AI developers, require careful consideration. Ultimately, navigating the AI era successfully will depend on proactive policy-making, collaborative efforts between governments, industries, and educational institutions, and a societal willingness to adapt to new paradigms of work.
+                    </p>
+                </div>
+                <!-- Questions will be dynamically inserted here -->
+            </div>
+
+            <!-- Logical Ability Module -->
+            <div id="module-logical-ability" class="module-section">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Logical Ability</h2>
+                <!-- Questions will be dynamically inserted here -->
+            </div>
+
+            <!-- Quantitative Ability Module -->
+            <div id="module-quantitative-ability" class="module-section">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Quantitative Ability</h2>
+                <!-- Questions will be dynamically inserted here -->
+            </div>
+
+            <!-- Basic Analytical Ability Module -->
+            <div id="module-basic-analytical-ability" class="module-section">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Basic Analytical Ability</h2>
+                <!-- Questions will be dynamically inserted here -->
+            </div>
+
+            <!-- Computer Programming Module -->
+            <div id="module-computer-programming" class="module-section">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Computer Programming</h2>
+                <!-- Questions will be dynamically inserted here -->
+            </div>
+
+            <!-- Computer Science Module -->
+            <div id="module-computer-science" class="module-section">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Computer Science</h2>
+                <!-- Questions will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div id="quiz-navigation" class="flex justify-between mt-8 hidden">
+            <button id="prev-module-btn" class="button bg-gray-500 text-white px-6 py-3 rounded-md font-semibold hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50" disabled>
+                Previous Question
+            </button>
+            <button id="next-module-btn" class="button bg-blue-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-opacity-50">
+                Next Question
+            </button>
+            <button id="submit-quiz-btn" class="button bg-green-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-opacity-50 hidden">
+                Submit Quiz
+            </button>
+        </div>
+
+        <!-- Webcam Feed -->
+        <video id="webcam-feed" autoplay muted playsinline></video>
+
+        <!-- Results Section -->
+        <div id="results-section" class="results-section mt-10 p-8 bg-gray-50 rounded-lg shadow-md border border-gray-200">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Quiz Results</h2>
+            <div class="text-xl text-center font-semibold text-gray-700 mb-6">
+                Total Score: <span id="total-score" class="text-blue-600">0</span> / <span id="total-questions">0</span>
+            </div>
+            <div id="results-details" class="space-y-4">
+                <!-- Detailed results will be inserted here -->
+            </div>
+            <div class="text-center mt-8">
+                <button id="restart-quiz-btn" class="button bg-purple-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-opacity-50">
+                    Restart Practice
+                </button>
+            </div>
+        </div>
+
+        <!-- Warning Overlay -->
+        <div id="warning-overlay" class="warning-overlay">
+            <div class="warning-box">
+                <h3 class="text-2xl font-bold text-red-600 mb-4">Warning!</h3>
+                <p id="warning-message" class="text-gray-700 mb-6">
+                    You have left the exam window or exited fullscreen. Please return to the exam to continue.
+                </p>
+                <button id="warning-ok-btn" class="button bg-blue-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-opacity-50">
+                    OK
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Data for all modules, questions, and answers
+        const quizData = [
+            {
+                moduleName: "English Comprehension",
+                id: "english-comprehension",
+                duration: 25, // minutes
+                questions: [
+                    { qNum: 1, text: "What is one of the main concerns regarding AI's impact on employment, as mentioned in the passage?", options: ["AI's inability to perform complex tasks.", "Widespread job displacement due to automation.", "Lack of investment in AI research.", "AI leading to decreased productivity."], correct: "b" },
+                    { qNum: 2, text: "According to the passage, how have past technological revolutions generally affected labor demands?", options: ["They always led to mass unemployment.", "They eliminated all existing job categories.", "They shifted labor demands and created new jobs.", "They only benefited agricultural sectors."], correct: "c" },
+                    { qNum: 3, text: "What unique challenge does the passage identify regarding AI adoption compared to past technological revolutions?", options: ["Its slower pace of development.", "Its limited scope of application.", "Its speed and scale of adoption.", "Its focus solely on manual labor."], correct: "c" },
+                    { qNum: 4, text: "What is suggested as a necessary step to successfully navigate the AI era?", options: ["Halting all AI development.", "Ignoring ethical implications.", "Proactive policy-making and retraining programs.", "Relying solely on market forces."], correct: "c" },
+                    { qNum: 5, text: "The word \"augment\" in the passage most nearly means:", options: ["To decrease", "To supplement or enhance", "To replace entirely", "To hinder"], correct: "b" },
+                    { qNum: 6, text: "Choose the word or phrase that is most nearly similar in meaning to the given word: EFFICIENT", options: ["Productive", "Wasteful", "Slow", "Useless"], correct: "a" },
+                    { qNum: 7, text: "Choose the word or phrase that is most nearly similar in meaning to the given word: OBLIGATORY", options: ["Optional", "Mandatory", "Voluntary", "Discretionary"], correct: "b" },
+                    { qNum: 8, text: "Choose the word or phrase that is most nearly similar in meaning to the given word: MITIGATE", options: ["Aggravate", "Intensify", "Alleviate", "Worsen"], correct: "c" },
+                    { qNum: 9, text: "Choose the word or phrase that is most nearly similar in meaning to the given word: RESILIENT", options: ["Fragile", "Flexible", "Rigid", "Brittle"], correct: "b" },
+                    { qNum: 10, text: "Choose the word or phrase that is most nearly similar in meaning to the given word: ADVERSARY", options: ["Ally", "Friend", "Opponent", "Supporter"], correct: "c" },
+                    { qNum: 11, text: "Choose the word or phrase that is most nearly opposite in meaning to the given word: EXPAND", options: ["Stretch", "Enlarge", "Contract", "Grow"], correct: "c" },
+                    { qNum: 12, text: "Choose the word or phrase that is most nearly opposite in meaning to the given word: FRUGAL", options: ["Thrifty", "Economical", "Extravagant", "Provident"], correct: "c" },
+                    { qNum: 13, text: "Choose the word or phrase that is most nearly opposite in meaning to the given word: ANCIENT", options: ["Old", "Primitive", "Modern", "Historical"], correct: "c" },
+                    { qNum: 14, text: "Choose the word or phrase that is most nearly opposite in meaning to the given word: OPAQUE", options: ["Clear", "Dark", "Cloudy", "Murky"], correct: "a" },
+                    { qNum: 15, text: "Choose the word or phrase that is most nearly opposite in meaning to the given word: NEBULOUS", options: ["Vague", "Clear", "Hazy", "Indistinct"], correct: "b" },
+                    { qNum: 16, text: "Fill in the blank: She is ______ at playing the piano.", options: ["good", "well", "best", "better"], correct: "a" },
+                    { qNum: 17, text: "Identify the part of speech of the underlined word: The **quick** brown fox jumps over the lazy dog.", options: ["Noun", "Verb", "Adjective", "Adverb"], correct: "c" },
+                    { qNum: 18, text: "Choose the correct sentence:", options: ["He don't like coffee.", "He doesn't like coffee.", "He not like coffee.", "He no like coffee."], correct: "b" },
+                    { qNum: 19, text: "What is the plural of 'child'?", options: ["Childs", "Children", "Childen", "Child's"], correct: "b" },
+                    { qNum: 20, text: "Complete the idiom: A blessing in ______.", options: ["disguise", "heaven", "plain sight", "trouble"], correct: "a" },
+                    { qNum: 21, text: "Choose the word that means 'a strong desire to do or achieve something'.", options: ["Apathy", "Ambition", "Indifference", "Lethargy"], correct: "b" },
+                    { qNum: 22, text: "Which of the following words is a synonym for 'VIGILANT'?", options: ["Careless", "Watchful", "Sleepy", "Lazy"], correct: "b" },
+                    { qNum: 23, text: "Choose the antonym for 'BENEVOLENT'.", options: ["Kind", "Generous", "Malevolent", "Compassionate"], correct: "c" },
+                    { qNum: 24, text: "Identify the error: Despite of the rain, we went for a walk.", options: ["Despite of", "the rain", "we went", "for a walk"], correct: "a" },
+                    { qNum: 25, text: "Fill in the blank: Neither John nor Mary ______ at home.", options: ["is", "are", "were", "been"], correct: "a" },
+                    { qNum: 26, text: "What is the meaning of 'Ephemeral'?", options: ["Lasting a long time", "Short-lived", "Permanent", "Eternal"], correct: "b" },
+                    { qNum: 27, text: "Which sentence uses correct punctuation?", options: ["I love dogs cats and birds.", "I love dogs, cats, and birds.", "I love dogs, cats and birds", "I love dogs cats, and birds."], correct: "b" },
+                    { qNum: 28, text: "Choose the correctly spelled word:", options: ["Seperate", "Separate", "Seperate", "Seprate"], correct: "b" },
+                    { qNum: 29, text: "What is the collective noun for a group of fish?", options: ["Herd", "Flock", "School", "Pack"], correct: "c" },
+                    { qNum: 30, text: "Fill in the blank: He is addicted ______ smoking.", options: ["to", "for", "with", "on"], correct: "a" }
+                ]
+            },
+            {
+                moduleName: "Logical Ability",
+                id: "logical-ability",
+                duration: 25,
+                questions: [
+                    { qNum: 1, text: "Find the next term in the series: A, E, I, O, ?", options: ["U", "P", "S", "V"], correct: "a" },
+                    { qNum: 2, text: "If 'WATER' is coded as 'XBUFS', how is 'FIRE' coded?", options: ["GJSF", "GHQF", "GHRE", "GHSF"], correct: "a" },
+                    { qNum: 3, text: "Statement: All engineers are intelligent. Some intelligent people are creative. Conclusion I: Some engineers are creative. Conclusion II: All creative people are intelligent.", options: ["Only Conclusion I follows", "Only Conclusion II follows", "Both Conclusion I and II follow", "Neither Conclusion I nor II follows"], correct: "d" },
+                    { qNum: 4, text: "Pointing to a photograph, a man said, \"I have no brother or sister, but that man's father is my father's son.\" Whose photograph was it?", options: ["His own", "His father's", "His son's", "His uncle's"], correct: "c" },
+                    { qNum: 5, text: "If North-East becomes West, and South-East becomes North, what will West become?", options: ["South-East", "North-East", "North-West", "South-West"], correct: "a" },
+                    { qNum: 6, text: "Arrange the following words in a meaningful sequence: 1. House, 2. Street, 3. Room, 4. City, 5. District", options: ["3, 1, 2, 5, 4", "3, 2, 1, 4, 5", "1, 2, 3, 4, 5", "4, 5, 2, 1, 3"], correct: "a" },
+                    { qNum: 7, text: "Find the missing number: 1, 8, 27, 64, ?, 216", options: ["100", "125", "150", "180"], correct: "b" },
+                    { qNum: 8, text: "If 7 * 3 = 10 and 12 * 4 = 16, then 9 * 5 = ?", options: ["14", "45", "4", "50"], correct: "a" },
+                    { qNum: 9, text: "Find the odd one out: Pen, Pencil, Eraser, Book", options: ["Pen", "Pencil", "Eraser", "Book"], correct: "d" },
+                    { qNum: 10, text: "Statements: Some tables are chairs. All chairs are benches. Conclusion I: Some tables are benches. Conclusion II: Some benches are chairs.", options: ["Only Conclusion I follows", "Only Conclusion II follows", "Both Conclusion I and II follow", "Neither Conclusion I nor II follows"], correct: "c" },
+                    { qNum: 11, text: "Complete the series: B, D, G, K, ?", options: ["N", "P", "Q", "R"], correct: "b" },
+                    { qNum: 12, text: "Five friends are sitting in a row facing North. P is to the right of Q. R is between S and T. Q is between T and R. Who is sitting in the middle?", options: ["P", "Q", "R", "T"], correct: "c" },
+                    { qNum: 13, text: "What comes next in the sequence: Z2, Y4, X8, W16, ?", options: ["V32", "U32", "V24", "U24"], correct: "a" },
+                    { qNum: 14, text: "If 'BRAIN' is coded as 'CSBJO', how is 'HEART' coded?", options: ["IFSUQ", "IDSUT", "IFSRU", "IFSTR"], correct: "c" },
+                    { qNum: 15, text: "Find the missing number: 2, 4, 8, 16, ?, 64", options: ["24", "30", "32", "48"], correct: "c" },
+                    { qNum: 16, text: "What is the next number in the series: 1, 1, 2, 3, 5, 8, ?", options: ["11", "12", "13", "14"], correct: "c" },
+                    { qNum: 17, text: "If 'CAB' is coded as '312', how is 'FEED' coded?", options: ["6554", "5664", "4556", "6545"], correct: "a" },
+                    { qNum: 18, text: "Statement: All students are intelligent. Some intelligent people are lazy. Conclusion I: Some students are lazy. Conclusion II: No student is lazy.", options: ["Only I follows", "Only II follows", "Both I and II follow", "Neither I nor II follows"], correct: "d" },
+                    { qNum: 19, text: "Introducing a girl, a boy said, \"She is the daughter of the only son of my father.\" How is the boy related to the girl?", options: ["Father", "Brother", "Uncle", "Cousin"], correct: "a" },
+                    { qNum: 20, text: "If 'SOUTH' is written as 'PNVUI', what is 'NORTH'?", options: ["OPRTJ", "OSQTH", "PQSTG", "PQRSH"], correct: "a" },
+                    { qNum: 21, text: "Find the odd one out: Book, Pen, Chair, Table", options: ["Book", "Pen", "Chair", "Table"], correct: "a" },
+                    { qNum: 22, text: "What comes next in the series: AB, DE, GH, JK, ?", options: ["LM", "MN", "NO", "PQ"], correct: "a" },
+                    { qNum: 23, text: "If $A = 1, B = 2$, and so on, what is the value of 'ACE'?", options: ["135", "123", "321", "531"], correct: "a" },
+                    { qNum: 24, text: "Find the missing number: 5, 25, 125, 625, ?", options: ["1000", "2500", "3125", "5000"], correct: "c" },
+                    { qNum: 25, text: "In a certain code, 'APPLE' is written as 'EOJQD'. How is 'GRAPE' written?", options: ["KUDSM", "KVFSM", "KUSDM", "KVDSM"], correct: "a" },
+                    { qNum: 26, text: "Statements: No tree is a flower. Some flowers are fruits. Conclusion I: No tree is a fruit. Conclusion II: Some fruits are not trees.", options: ["Only I follows", "Only II follows", "Both I and II follow", "Neither I nor II follows"], correct: "b" },
+                    { qNum: 27, text: "A group of five people, A, B, C, D, E, are sitting in a circle. A is to the immediate right of B. C is to the immediate left of D. E is sitting between B and D. Who is sitting to the immediate right of E?", options: ["A", "B", "C", "D"], correct: "d" },
+                    { qNum: 28, text: "If 'TRAIN' is coded as 'VTCKP', how is 'BUS' coded?", options: ["DWV", "DWU", "EVW", "FVW"], correct: "a" },
+                    { qNum: 29, text: "Find the odd one out: Keyboard, Mouse, Monitor, Software", options: ["Keyboard", "Mouse", "Monitor", "Software"], correct: "d" },
+                    { qNum: 30, text: "What comes next in the series: 2, 3, 5, 7, 11, ?", options: ["13", "15", "17", "19"], correct: "a" }
+                ]
+            },
+            {
+                moduleName: "Quantitative Ability",
+                id: "quantitative-ability",
+                duration: 25,
+                questions: [
+                    { qNum: 1, text: "A shopkeeper sells an item for Rs. 500 after a discount of 20% on the marked price. If the cost price of the item is Rs. 300, what is the profit percentage?", options: ["50%", "66.67%", "40%", "25%"], correct: "b" },
+                    { qNum: 2, text: "A train travels at a speed of 90 km/h. How many meters will it travel in 10 seconds?", options: ["250 m", "200 m", "150 m", "300 m"], correct: "a" },
+                    { qNum: 3, text: "If the simple interest on a certain sum of money for 3 years at 10% per annum is Rs. 150, find the principal amount.", options: ["Rs. 500", "Rs. 450", "Rs. 300", "Rs. 600"], correct: "a" },
+                    { qNum: 4, text: "A can do a piece of work in 20 days and B can do the same work in 30 days. If they work together, in how many days will they complete the work?", options: ["10 days", "12 days", "15 days", "25 days"], correct: "b" },
+                    { qNum: 5, text: "The ratio of two numbers is 5:7 and their sum is 144. Find the larger number.", options: ["60", "72", "84", "96"], correct: "c" },
+                    { qNum: 6, text: "What is 25% of 20% of 400?", options: ["10", "20", "40", "50"], correct: "b" },
+                    { qNum: 7, text: "A student scored 60 out of 75 marks in a test. What is the percentage score?", options: ["75%", "80%", "85%", "90%"], correct: "b" },
+                    { qNum: 8, text: "A car travels 300 km at an average speed of 50 km/h. How long does the journey take?", options: ["5 hours", "6 hours", "7 hours", "8 hours"], correct: "b" },
+                    { qNum: 9, text: "If an amount of Rs. 8000 is invested at 5% compound interest per annum, what will be the amount after 2 years?", options: ["Rs. 8800", "Rs. 8820", "Rs. 8840", "Rs. 8860"], correct: "b" },
+                    { qNum: 10, text: "A bag contains 5 red, 3 blue, and 2 green balls. What is the probability of drawing a blue ball?", options: ["3/10", "1/5", "1/2", "2/5"], correct: "a" },
+                    { qNum: 11, text: "The average age of 5 boys is 12 years. If the age of a new boy is included, the average age becomes 13 years. What is the age of the new boy?", options: ["17 years", "18 years", "19 years", "20 years"], correct: "b" },
+                    { qNum: 12, text: "If the cost of 5 pens is Rs. 75, what is the cost of 8 pens?", options: ["Rs. 100", "Rs. 120", "Rs. 150", "Rs. 90"], correct: "b" },
+                    { qNum: 13, text: "A mixture contains milk and water in the ratio 3:1. If 4 liters of water are added, the ratio becomes 2:1. Find the original quantity of milk in the mixture.", options: ["12 liters", "16 liters", "20 liters", "24 liters"], correct: "d" },
+                    { qNum: 14, text: "By selling an article for Rs. 720, a man gains 20%. What is the cost price of the article?", options: ["Rs. 600", "Rs. 650", "Rs. 700", "Rs. 550"], correct: "a" },
+                    { qNum: 15, text: "What is the smallest number that is divisible by 6, 8, and 12?", options: ["12", "24", "36", "48"], correct: "b" },
+                    { qNum: 16, text: "A sum of money becomes 5/4 of itself in 2 years at a certain rate of simple interest. The rate of interest per annum is:", options: ["10%", "12.5%", "15%", "20%"], correct: "b" },
+                    { qNum: 17, text: "If the product of two numbers is 120 and their sum is 23, what are the numbers?", options: ["8 and 15", "10 and 13", "12 and 11", "6 and 20"], correct: "a" },
+                    { qNum: 18, text: "A person covers a distance in 30 minutes if he travels at a speed of 60 km/h. What should be his speed to cover the same distance in 20 minutes?", options: ["75 km/h", "80 km/h", "90 km/h", "100 km/h"], correct: "c" },
+                    { qNum: 19, text: "The area of a square field is 400 sq meters. What is the perimeter of the field?", options: ["40 m", "80 m", "100 m", "160 m"], correct: "b" },
+                    { qNum: 20, text: "If 15% of a number is 60, what is 40% of that number?", options: ["120", "160", "180", "240"], correct: "b" },
+                    { qNum: 21, text: "A pipe can fill a tank in 8 hours and another pipe can empty it in 12 hours. If both pipes are opened, in how much time will the tank be full?", options: ["20 hours", "24 hours", "30 hours", "48 hours"], correct: "b" },
+                    { qNum: 22, text: "A and B together can complete a task in 10 days. B alone can complete it in 15 days. In how many days can A alone complete the task?", options: ["20 days", "25 days", "30 days", "40 days"], correct: "c" },
+                    { qNum: 23, text: "The average of 7 numbers is 25. If each number is multiplied by 2, what will be the new average?", options: ["25", "27", "50", "75"], correct: "c" },
+                    { qNum: 24, text: "What is the compound interest on Rs. 10,000 for 2 years at 10% per annum, compounded annually?", options: ["Rs. 2000", "Rs. 2100", "Rs. 2200", "Rs. 2500"], correct: "b" },
+                    { qNum: 25, text: "A box contains 4 red, 5 green, and 3 yellow marbles. If a marble is drawn at random, what is the probability that it is not yellow?", options: ["1/4", "3/4", "1/2", "5/12"], correct: "b" },
+                    { qNum: 26, text: "If the cost price of 20 articles is equal to the selling price of 16 articles, find the profit percentage.", options: ["20%", "25%", "30%", "35%"], correct: "b" },
+                    { qNum: 27, text: "The population of a town increases by 10% every year. If its current population is 20,000, what will be its population after 2 years?", options: ["22,000", "24,000", "24,200", "26,000"], correct: "c" },
+                    { qNum: 28, text: "A sum of money invested at simple interest triples itself in 10 years. What is the rate of interest per annum?", options: ["10%", "20%", "25%", "30%"], correct: "b" },
+                    { qNum: 29, text: "The sum of three consecutive even numbers is 60. Find the smallest number.", options: ["18", "20", "22", "24"], correct: "a" },
+                    { qNum: 30, text: "A car covers a distance of 150 km in 3 hours. How much distance will it cover in 5 hours at the same speed?", options: ["200 km", "225 km", "250 km", "275 km"], correct: "c" }
+                ]
+            },
+            {
+                moduleName: "Basic Analytical Ability",
+                id: "basic-analytical-ability",
+                duration: 25,
+                questions: [
+                    { qNum: 1, text: "Find the missing number in the series: 1, 4, 9, 16, 25, ?", options: ["30", "36", "49", "64"], correct: "b" },
+                    { qNum: 2, text: "Complete the pattern: Triangle, Square, Pentagon, Hexagon, ?", options: ["Heptagon", "Octagon", "Nonagon", "Decagon"], correct: "a" },
+                    { qNum: 3, text: "If 'CAT' is coded as 'DBU', how is 'DOG' coded?", options: ["EPG", "EPH", "FPH", "FQH"], correct: "b" },
+                    { qNum: 4, text: "Which word does NOT belong with the others: Cat, Dog, Lion, Cow", options: ["Cat", "Dog", "Lion", "Cow"], correct: "c" },
+                    { qNum: 5, text: "In a row of students, A is 15th from the left and B is 10th from the right. If there are 5 students between A and B, how many students are there in the row?", options: ["25", "28", "30", "35"], correct: "c" },
+                    { qNum: 6, text: "Observe the relationship and fill in the blank: Bird : Nest :: Human : ?", options: ["Den", "Cave", "House", "Burrow"], correct: "c" },
+                    { qNum: 7, text: "Find the odd one out: January, February, April, December", options: ["January", "February", "April", "December"], correct: "c" },
+                    { qNum: 8, text: "What time will it be 120 hours after 10:30 AM on Monday?", options: ["10:30 AM Friday", "10:30 AM Saturday", "10:30 AM Sunday", "10:30 AM Monday"], correct: "b" },
+                    { qNum: 9, text: "If 3 + 5 = 15, 4 + 6 = 24, then 7 + 2 = ?", options: ["9", "14", "18", "21"], correct: "b" },
+                    { qNum: 10, text: "Count the number of squares in a 3x3 grid.", options: ["9", "10", "13", "14"], correct: "d" },
+                    { qNum: 11, text: "A clock shows 4:30. If the minute hand points towards East, in what direction will the hour hand point?", options: ["North", "North-East", "South", "South-West"], correct: "b" },
+                    { qNum: 12, text: "In a certain code language, 'PALE' is coded as '2134' and 'EARTH' is coded as '41590'. How is 'PEARL' coded in that language?", options: ["24153", "25413", "24513", "24135"], correct: "a" },
+                    { qNum: 13, text: "A family has two children. If one of them is a boy, what is the probability that the other child is also a boy?", options: ["1/4", "1/3", "1/2", "2/3"], correct: "b" },
+                    { qNum: 14, text: "Find the missing number in the sequence: 7, 14, 21, 28, ?", options: ["30", "35", "42", "49"], correct: "b" },
+                    { qNum: 15, text: "Ram walks 20 meters towards North. He then turns right and walks 30 meters. Then he turns right and walks 35 meters. Then he turns left and walks 15 meters. Then he turns left and walks 15 meters. In which direction and how many meters is he from the starting point?", options: ["45 meters East", "30 meters East", "45 meters West", "30 meters North"], correct: "a" },
+                    { qNum: 16, text: "Find the odd one out: 12, 18, 28, 30", options: ["12", "18", "28", "30"], correct: "c" },
+                    { qNum: 17, text: "Complete the series: 2, 4, 6, 8, ?", options: ["9", "10", "11", "12"], correct: "b" },
+                    { qNum: 18, text: "If 'Z = 26', 'NET = 39', then 'CAT' = ?", options: ["24", "25", "26", "27"], correct: "a" },
+                    { qNum: 19, text: "A, B, C, D, E are sitting in a row. A is to the right of B. D is to the left of B and right of E. C is to the right of A. Who is in the middle?", options: ["A", "B", "C", "D"], correct: "a" },
+                    { qNum: 20, text: "What is the angle between the hour hand and minute hand of a clock at 6:00 PM?", options: ["0 degrees", "90 degrees", "180 degrees", "270 degrees"], correct: "c" },
+                    { qNum: 21, text: "Find the missing number: 1, 2, 4, 7, 11, ?", options: ["13", "15", "16", "17"], correct: "c" },
+                    { qNum: 22, text: "If 'SUN' is coded as 'RUN', how is 'FUN' coded?", options: ["TUN", "EUN", "DUN", "GUN"], correct: "c" },
+                    { qNum: 23, text: "Find the odd one out: Table, Chair, Cupboard, Computer", options: ["Table", "Chair", "Cupboard", "Computer"], correct: "d" },
+                    { qNum: 24, text: "In a class of 30 students, 18 play cricket and 15 play football. If 7 play both, how many play neither?", options: ["4", "5", "6", "7"], correct: "a" },
+                    { qNum: 25, text: "A man faces North and turns 45 degrees clockwise, then 90 degrees anti-clockwise. In which direction is he facing?", options: ["North-West", "North-East", "South-West", "South-East"], correct: "a" },
+                    { qNum: 26, text: "What is the next term in the series: AZ, BY, CX, DW, ?", options: ["EV", "FU", "FV", "EU"], correct: "a" },
+                    { qNum: 27, text: "If 'RED' is called 'GREEN', 'GREEN' is called 'BLUE', 'BLUE' is called 'WHITE', 'WHITE' is called 'YELLOW', then what is the color of the sky?", options: ["Green", "Blue", "White", "Yellow"], correct: "c" },
+                    { qNum: 28, text: "Find the missing number in the pattern: 3, 6, 12, 24, ?", options: ["36", "48", "60", "72"], correct: "b" },
+                    { qNum: 29, text: "If today is Monday, what day will it be after 61 days?", options: ["Wednesday", "Thursday", "Friday", "Saturday"], correct: "d" },
+                    { qNum: 30, text: "A dice is rolled. What is the probability of getting an even number?", options: ["1/6", "1/3", "1/2", "2/3"], correct: "c" }
+                ]
+            },
+            {
+                moduleName: "Computer Programming",
+                id: "computer-programming",
+                duration: 25,
+                questions: [
+                    { qNum: 1, text: "Which of the following is an example of a high-level programming language?", options: ["Assembly Language", "Machine Code", "C++", "Binary Code"], correct: "c" },
+                    { qNum: 2, text: "What is the primary purpose of a 'compiler' in programming?", options: ["To execute the program line by line.", "To translate source code into machine code.", "To manage database connections.", "To design user interfaces."], correct: "b" },
+                    { qNum: 3, text: "Which of these is a control flow statement used for repetition?", options: ["if-else", "switch-case", "for loop", "break"], correct: "c" },
+                    { qNum: 4, text: "What will be the output of the following C++ code snippet?<pre class=\"bg-gray-100 p-3 rounded-md text-sm my-2\">#include &lt;iostream&gt;\nint main() {\n    int a = 5;\n    int b = 2;\n    std::cout &lt;&lt; a / b;\n    return 0;\n}</pre>", options: ["2.5", "2", "3", "Error"], correct: "b" },
+                    { qNum: 5, text: "In programming, what does 'DRY' stand for?", options: ["Don't Replicate Your code", "Do Repeat Yourself", "Don't Repeat Yourself", "Develop Robust Yield"], correct: "c" },
+                    { qNum: 6, text: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Stack", "Linked List", "Tree"], correct: "b" },
+                    { qNum: 7, text: "What is polymorphism in OOP?", options: ["The ability to create multiple objects from a single class.", "The ability of an object to take on many forms.", "The process of hiding internal implementation details.", "The mechanism of creating new classes from existing ones."], correct: "b" },
+                    { qNum: 8, text: "Which keyword is used to define a class in Java?", options: ["define", "class", "struct", "type"], correct: "b" },
+                    { qNum: 9, text: "What is an array in programming?", options: ["A collection of different data types.", "A collection of elements of the same data type stored at contiguous memory locations.", "A dynamic data structure.", "A type of function."], correct: "b" },
+                    { qNum: 10, text: "What is the purpose of comments in programming code?", options: ["To execute specific parts of the code.", "To define variables.", "To provide explanations or annotations within the code for human readers.", "To handle errors."], correct: "c" },
+                    { qNum: 11, text: "Which operator is used for dynamic memory allocation in C++?", options: ["malloc", "calloc", "new", "allocate"], correct: "c" },
+                    { qNum: 12, text: "What does 'API' stand for in the context of programming?", options: ["Application Program Integration", "Advanced Programming Interface", "Application Programming Interface", "Automated Program Instruction"], correct: "c" },
+                    { qNum: 13, text: "In Python, which of the following is used to define a block of code (like inside a function or loop)?", options: ["Curly braces {}", "Parentheses ()", "Indentation", "Square brackets []"], correct: "c" },
+                    { qNum: 14, text: "Which sorting algorithm has the worst-case time complexity of O(n^2)?", options: ["Merge Sort", "Quick Sort", "Bubble Sort", "Heap Sort"], correct: "c" },
+                    { qNum: 15, text: "What is recursion in programming?", options: ["A function that calls itself.", "A loop that never ends.", "A method to optimize code.", "A way to handle errors."], correct: "a" },
+                    { qNum: 16, text: "Which of the following is used to create a new object in Java?", options: ["create", "new", "make", "instance"], correct: "b" },
+                    { qNum: 17, text: "What is the output of `console.log(typeof null)` in JavaScript?", options: ["null", "object", "undefined", "number"], correct: "b" },
+                    { qNum: 18, text: "Which loop guarantees to execute at least once?", options: ["for loop", "while loop", "do-while loop", "foreach loop"], correct: "c" },
+                    { qNum: 19, text: "What is a 'pointer' in C/C++?", options: ["A variable that stores a memory address.", "A specific type of integer.", "A function that returns a memory address.", "A keyword used for loop control."], correct: "a" },
+                    { qNum: 20, text: "Which of the following is a non-access modifier in Java?", options: ["public", "private", "static", "protected"], correct: "c" },
+                    { qNum: 21, text: "What does 'JVM' stand for in Java?", options: ["Java Virtual Machine", "Java Verification Model", "Joint Virtual Module", "Just Virtual Memory"], correct: "a" },
+                    { qNum: 22, text: "Which of these is used to handle exceptions in Python?", options: ["try/catch", "try/except", "do/while", "if/then"], correct: "b" },
+                    { qNum: 23, text: "What is method overloading in OOP?", options: ["Defining multiple methods with the same name but different parameters.", "Defining a method in a child class that has the same name as a method in its parent class.", "Accessing a method from outside the class.", "Making a method inaccessible."], correct: "a" },
+                    { qNum: 24, text: "Which command is used to compile a Java source file?", options: ["java", "javac", "javarun", "compilejava"], correct: "b" },
+                    { qNum: 25, text: "What is the purpose of 'else if' in conditional statements?", options: ["To specify an alternative block of code to be executed if the same condition is true.", "To specify a new condition to test if the first condition is false.", "To combine multiple 'if' statements.", "To create a loop."], correct: "b" },
+                    { qNum: 26, text: "Which of the following is not a primitive data type in Java?", options: ["byte", "short", "long", "String"], correct: "d" },
+                    { qNum: 27, text: "What is the primary role of a 'debugger' in software development?", options: ["To write code automatically.", "To find and fix errors in software.", "To translate code from one language to another.", "To deploy applications."], correct: "b" },
+                    { qNum: 28, text: "In Python, what is a 'tuple'?", options: ["A mutable, ordered collection.", "An immutable, ordered collection.", "A mutable, unordered collection.", "An immutable, unordered collection."], correct: "b" },
+                    { qNum: 29, text: "Which of these is a common application of a 'linked list'?", options: ["Implementing stacks and queues", "Storing data in a fixed-size array", "Performing arithmetic operations", "Managing CPU registers"], correct: "a" },
+                    { qNum: 30, text: "What is an 'IDE'?", options: ["Integrated Development Environment", "Integrated Design Engine", "Intelligent Data Editor", "Interactive Development Experience"], correct: "a" }
+                ]
+            },
+            {
+                moduleName: "Computer Science",
+                id: "computer-science",
+                duration: 25,
+                questions: [
+                    { qNum: 1, text: "Which component of a computer is considered its \"brain\"?", options: ["RAM", "Hard Disk Drive (HDD)", "Central Processing Unit (CPU)", "Graphics Processing Unit (GPU)"], correct: "c" },
+                    { qNum: 2, text: "What is the full form of HTTP?", options: ["HyperText Transfer Protocol", "High-Level Text Transfer Program", "Hyper Transfer Text Protocol", "Home Text Transfer Protocol"], correct: "a" },
+                    { qNum: 3, text: "Which type of memory is volatile, meaning its contents are lost when the power is turned off?", options: ["ROM (Read-Only Memory)", "RAM (Random Access Memory)", "SSD (Solid State Drive)", "Hard Disk Drive (HDD)"], correct: "b" },
+                    { qNum: 4, text: "What is an IP address used for in computer networks?", options: ["To identify a website's domain name.", "To uniquely identify a device on a network.", "To encrypt data transmitted over the internet.", "To measure internet speed."], correct: "b" },
+                    { qNum: 5, text: "Which of the following is NOT a type of operating system?", options: ["Windows", "Linux", "Microsoft Word", "macOS"], correct: "c" },
+                    { qNum: 6, text: "What does SQL stand for?", options: ["Standard Query Language", "Structured Question Language", "Sequential Query Logic", "Structured Query Language"], correct: "d" },
+                    { qNum: 7, text: "What is a \"firewall\" in computer security?", options: ["A physical barrier to prevent unauthorized access to a server room.", "A software or hardware-based network security system that controls incoming and outgoing network traffic.", "A program that detects and removes viruses.", "A system for backing up data."], correct: "b" },
+                    { qNum: 8, text: "Which topology connects all devices to a single central cable?", options: ["Star Topology", "Ring Topology", "Bus Topology", "Mesh Topology"], correct: "c" },
+                    { qNum: 9, text: "What is the purpose of a URL?", options: ["To specify the size of an image on a webpage.", "To uniquely identify and locate a resource on the internet.", "To define the color scheme of a website.", "To encrypt network traffic."], correct: "b" },
+                    { qNum: 10, text: "What is data \"normalization\" in a database?", options: ["The process of sorting data in ascending or descending order.", "Organizing data to minimize redundancy and improve data integrity.", "Encrypting sensitive data.", "Backing up the database."], correct: "b" },
+                    { qNum: 11, text: "Which of the following best describes \"Cloud Computing\"?", options: ["Storing data on a personal computer's hard drive.", "Delivering computing services—including servers, storage, databases, networking, software, analytics, and intelligence—over the Internet (\"the cloud\").", "Using a single, powerful supercomputer for all tasks.", "A type of specialized software for weather forecasting."], correct: "b" },
+                    { qNum: 12, text: "What is a \"byte\"?", options: ["A single binary digit (0 or 1).", "A unit of information consisting of 8 bits.", "The smallest unit of data in a database.", "A programming instruction."], correct: "b" },
+                    { qNum: 13, text: "Which protocol is primarily used for sending email?", options: ["FTP (File Transfer Protocol)", "HTTP (HyperText Transfer Protocol)", "SMTP (Simple Mail Transfer Protocol)", "POP3 (Post Office Protocol version 3)"], correct: "c" },
+                    { qNum: 14, text: "What is the role of a web browser?", options: ["To host websites.", "To interpret and display web pages.", "To write server-side code.", "To manage network security."], correct: "b" },
+                    { qNum: 15, text: "What is the main characteristic of a \"client-server\" model?", options: ["All devices in the network have equal capabilities.", "Centralized processing, where all tasks are performed by a single powerful computer.", "A distributed architecture where clients request services from servers.", "Direct peer-to-peer communication between all connected devices."], correct: "c" },
+                    { qNum: 16, text: "What is the full form of LAN?", options: ["Local Area Network", "Large Area Network", "Limited Access Network", "Local Access Node"], correct: "a" },
+                    { qNum: 17, text: "Which layer of the OSI model is responsible for logical addressing and routing?", options: ["Physical Layer", "Data Link Layer", "Network Layer", "Transport Layer"], correct: "c" },
+                    { qNum: 18, text: "What is a 'cache' in computing?", options: ["A type of permanent storage.", "A component that stores data so that future requests for that data can be served faster.", "A secure network connection.", "A programming language."], correct: "b" },
+                    { qNum: 19, text: "Which of these is a common form of cyber-attack where attackers attempt to trick individuals into revealing sensitive information?", options: ["DDoS Attack", "SQL Injection", "Phishing", "Man-in-the-Middle Attack"], correct: "c" },
+                    { qNum: 20, text: "What is the purpose of an 'Assembler'?", options: ["To convert high-level language to machine code.", "To convert assembly language to machine code.", "To convert machine code to assembly language.", "To execute assembly language directly."], correct: "b" },
+                    { qNum: 21, text: "Which data structure is typically used to implement a 'call stack' in programming?", options: ["Queue", "Linked List", "Tree", "Stack"], correct: "d" },
+                    { qNum: 22, text: "What is 'bandwidth' in networking?", options: ["The physical length of a network cable.", "The maximum rate of data transfer across a given path.", "The number of devices connected to a network.", "The time it takes for a packet to travel from source to destination."], correct: "b" },
+                    { qNum: 23, text: "Which of the following is a common open-source operating system?", options: ["Microsoft Windows", "macOS", "Linux", "iOS"], correct: "c" },
+                    { qNum: 24, text: "What is the primary role of a 'router' in a network?", options: ["To amplify Wi-Fi signals.", "To connect multiple devices in a local area network.", "To forward data packets between different computer networks.", "To filter malicious traffic."], correct: "c" },
+                    { qNum: 25, text: "What is the difference between primary and secondary memory?", options: ["Primary memory is faster and volatile, secondary is slower and non-volatile.", "Primary memory is used for long-term storage, secondary for temporary.", "Primary memory is cheaper than secondary memory.", "Primary memory is external, secondary is internal."], correct: "a" },
+                    { qNum: 26, text: "What does 'DBMS' stand for?", options: ["Data Base Management System", "Disk Backup Management System", "Digital Binary Management Software", "Dynamic Buffer Management System"], correct: "a" },
+                    { qNum: 27, text: "Which networking device operates at the Physical Layer (Layer 1) of the OSI model and simply amplifies and retransmits signals?", options: ["Switch", "Router", "Hub", "Gateway"], correct: "c" },
+                    { qNum: 28, text: "What is 'binary code'?", options: ["A programming language using words.", "A system that uses only two symbols, 0 and 1, to represent data.", "A type of encryption.", "A method for designing algorithms."], correct: "b" },
+                    { qNum: 29, text: "Which concept in computer science deals with the efficiency of algorithms?", options: ["Data Abstraction", "Time Complexity", "Memory Management", "User Interface Design"], correct: "b" },
+                    { qNum: 30, text: "What is the main function of 'DNS'?", options: ["To secure network connections.", "To translate domain names to IP addresses.", "To manage file storage.", "To distribute network traffic."], correct: "b" }
+                ]
+            }
+        ];
+
+        let currentModuleIndex = 0;
+        let currentQuestionIndex = 0; // New: Track current question within a module
+        let userAnswers = {};
+        let timerInterval;
+        let timeRemaining = 0; // in seconds
+        let warningCount = 0; // Track warnings for proctoring features
+        const MAX_WARNINGS = 3; // Example: Max warnings before quiz submission
+
+        const landingScreen = document.getElementById('landing-screen');
+        const startExamBtn = document.getElementById('start-exam-btn');
+        const quizHeader = document.getElementById('quiz-header');
+        const moduleTitleElem = document.getElementById('module-title');
+        const timerElem = document.getElementById('timer');
+        const modulesContainer = document.getElementById('modules-container');
+        const prevBtn = document.getElementById('prev-module-btn');
+        const nextBtn = document.getElementById('next-module-btn');
+        const submitBtn = document.getElementById('submit-quiz-btn');
+        const resultsSection = document.getElementById('results-section');
+        const totalScoreElem = document.getElementById('total-score');
+        const totalQuestionsElem = document.getElementById('total-questions');
+        const resultsDetailsElem = document.getElementById('results-details');
+        const restartQuizBtn = document.getElementById('restart-quiz-btn');
+        const webcamFeed = document.getElementById('webcam-feed');
+        const warningOverlay = document.getElementById('warning-overlay');
+        const warningMessage = document.getElementById('warning-message');
+        const warningOkBtn = document.getElementById('warning-ok-btn');
+
+        let isExamActive = false; // Flag to indicate if exam mode is active
+
+        // Function to show a warning message overlay
+        function showWarning(message) {
+            warningMessage.textContent = message;
+            warningOverlay.style.display = 'flex';
+            warningCount++;
+
+            if (warningCount >= MAX_WARNINGS) {
+                warningMessage.textContent = "Too many warnings! Your quiz is being submitted automatically.";
+                warningOkBtn.disabled = true; // Disable OK button
+                setTimeout(() => {
+                    warningOverlay.style.display = 'none';
+                    submitQuiz(); // Auto-submit after max warnings
+                }, 3000); // Give user time to read
+            }
+        }
+
+        // --- Proctoring Functions ---
+        async function startWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                webcamFeed.srcObject = stream;
+                webcamFeed.style.display = 'block'; // Show webcam feed
+            } catch (err) {
+                console.error("Error accessing webcam:", err);
+                // Optionally show a message to the user about webcam not being available
+                // showMessage("Webcam Access Denied", "Could not access your webcam. Please ensure permissions are granted for proctoring.");
+            }
+        }
+
+        function stopWebcam() {
+            if (webcamFeed.srcObject) {
+                webcamFeed.srcObject.getTracks().forEach(track => track.stop());
+                webcamFeed.srcObject = null;
+                webcamFeed.style.display = 'none'; // Hide webcam feed
+            }
+        }
+
+        function enterFullscreen() {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.warn(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    // Inform user if fullscreen fails (e.g., denied by user)
+                    // showMessage("Fullscreen Failed", "Could not enter fullscreen mode. For optimal exam experience, please try to manually enable fullscreen.");
+                });
+            } else {
+                // Fallback for older browsers
+                // showMessage("Fullscreen Not Supported", "Your browser does not fully support fullscreen mode.");
+            }
+        }
+
+        function handleFullscreenChange() {
+            if (isExamActive && !document.fullscreenElement) {
+                showWarning("You have exited fullscreen mode. Please return to fullscreen.");
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (isExamActive && document.hidden) {
+                showWarning("You have switched tabs or minimized the window. Please return to the exam.");
+            }
+        }
+
+        function handleBlur() {
+            if (isExamActive && !document.hasFocus()) {
+                showWarning("The exam window has lost focus. Please return to the exam.");
+            }
+        }
+
+        // --- Quiz Core Functions ---
+
+        // Function to render all questions for all modules initially (but hidden)
+        function initializeQuizContent() {
+            quizData.forEach(module => {
+                const moduleDiv = document.getElementById(`module-${module.id}`);
+                // For English comprehension, the passage is already in HTML.
+                // For other modules, just add a general instruction if no passage.
+                if (module.id !== "english-comprehension" && !moduleDiv.querySelector('.passage-box')) {
+                    const passageBox = document.createElement('div');
+                    passageBox.className = 'passage-box bg-gray-50 p-6 rounded-lg mb-6 border border-gray-200';
+                    passageBox.innerHTML = '<p class="text-gray-700 leading-relaxed text-justify">Answer the following questions based on your understanding of ' + module.moduleName + '.</p>';
+                    moduleDiv.prepend(passageBox); // Add passage box at the beginning
+                }
+
+                module.questions.forEach((q, qIndex) => {
+                    const questionItemDiv = document.createElement('div');
+                    questionItemDiv.className = 'question-item'; // This will be hidden by default
+                    let optionsHtml = '';
+
+                    q.options.forEach((option, optIndex) => {
+                        const optionLetter = String.fromCharCode(97 + optIndex); // 'a', 'b', 'c', 'd'
+                        const questionName = `${module.id}-q${q.qNum}`;
+                        const inputId = `${questionName}-option-${optIndex}`;
+
+                        optionsHtml += `
+                            <label for="${inputId}" class="option-label text-gray-700">
+                                <input type="radio" id="${inputId}" name="${questionName}" value="${optionLetter}"
+                                    onchange="handleAnswerChange('${module.id}', 'q${q.qNum}', this.value)">
+                                ${optionLetter}) ${option}
+                            </label>
+                        `;
+                    });
+                    questionItemDiv.innerHTML = `
+                        <p class="text-lg font-medium text-gray-800 mb-3">Q${q.qNum}. ${q.text}</p>
+                        <div class="space-y-2">
+                            ${optionsHtml}
+                        </div>
+                    `;
+                    moduleDiv.appendChild(questionItemDiv); // Append question item
+                });
+            });
+        }
+
+
+        // Function to display a specific question within the current module
+        function displayQuestion(moduleIdx, questionIdx) {
+            const currentModule = quizData[moduleIdx];
+            const currentModuleDiv = document.getElementById(`module-${currentModule.id}`);
+            // Get all question items, including the passage if present, excluding the h2
+            // We want to hide/show specific 'question-item' divs
+            const questionItems = currentModuleDiv.querySelectorAll('.question-item');
+
+            // Hide all questions first
+            questionItems.forEach(item => {
+                item.style.display = 'none';
+            });
+
+            // Show only the current question
+            if (questionItems[questionIdx]) {
+                questionItems[questionIdx].style.display = 'block';
+            }
+
+            // Restore user's previous selection for the current question
+            const questionName = `${currentModule.id}-q${currentModule.questions[questionIdx].qNum}`;
+            const userAnswer = userAnswers[questionName];
+            if (userAnswer) {
+                const selectedRadio = document.querySelector(`input[name="${questionName}"][value="${userAnswer}"]`);
+                if (selectedRadio) {
+                    selectedRadio.checked = true;
+                }
+            } else {
+                // If no answer, ensure all radios for this question are unchecked
+                document.querySelectorAll(`input[name="${questionName}"]`).forEach(radio => radio.checked = false);
+            }
+
+
+            // Update button states and text
+            updateNavigationButtons();
+        }
+
+        // Refactored to update buttons based on global indices
+        function updateNavigationButtons() {
+            const currentModule = quizData[currentModuleIndex];
+            const isFirstQuestionInModule = (currentQuestionIndex === 0);
+            const isLastQuestionInModule = (currentQuestionIndex === currentModule.questions.length - 1);
+            const isFirstModule = (currentModuleIndex === 0);
+            const isLastModule = (currentModuleIndex === quizData.length - 1);
+
+            // Previous Button Logic
+            prevBtn.disabled = (isFirstModule && isFirstQuestionInModule);
+            if (isFirstQuestionInModule && !isFirstModule) {
+                prevBtn.textContent = "Previous Module";
+            } else {
+                prevBtn.textContent = "Previous Question";
+            }
+
+            // Next/Submit Button Logic
+            if (isLastQuestionInModule && isLastModule) {
+                nextBtn.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+            } else if (isLastQuestionInModule) {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+                nextBtn.textContent = "Next Module";
+            } else {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+                nextBtn.textContent = "Next Question";
+            }
+        }
+
+        // Function to display a specific module (always showing its first question)
+        function displayModule(index) {
+            // Hide all modules
+            document.querySelectorAll('.module-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            resultsSection.style.display = 'none'; // Hide results section
+
+            const currentModule = quizData[index];
+            const currentModuleDiv = document.getElementById(`module-${currentModule.id}`);
+            currentModuleDiv.style.display = 'block';
+
+            moduleTitleElem.textContent = currentModule.moduleName;
+            startTimer(currentModule.duration * 60); // Start timer for 25 minutes
+
+            // Always start at the first question of the new module
+            currentQuestionIndex = 0;
+            displayQuestion(currentModuleIndex, currentQuestionIndex);
+        }
+
+        // Timer function
+        function startTimer(duration) {
+            clearInterval(timerInterval); // Clear any existing timer
+            timeRemaining = duration;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    // Time's up for current module, auto-advance or submit
+                    if (currentModuleIndex < quizData.length - 1) {
+                        currentModuleIndex++;
+                        displayModule(currentModuleIndex);
+                    } else {
+                        submitQuiz();
+                    }
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            timerElem.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Handle answer change
+        function handleAnswerChange(moduleId, questionId, selectedValue) {
+            userAnswers[`${moduleId}-${questionId}`] = selectedValue;
+        }
+
+        // Navigation functions
+        function nextModule() {
+            const currentModule = quizData[currentModuleIndex];
+            if (currentQuestionIndex < currentModule.questions.length - 1) {
+                // Move to next question in current module
+                currentQuestionIndex++;
+                displayQuestion(currentModuleIndex, currentQuestionIndex);
+            } else if (currentModuleIndex < quizData.length - 1) {
+                // Move to first question of next module
+                currentModuleIndex++;
+                currentQuestionIndex = 0; // Reset question index for new module
+                displayModule(currentModuleIndex); // This will call displayQuestion internally
+            } else {
+                // Last module, last question - submit quiz
+                submitQuiz();
+            }
+        }
+
+        function prevModule() {
+            if (currentQuestionIndex > 0) {
+                // Move to previous question in current module
+                currentQuestionIndex--;
+                displayQuestion(currentModuleIndex, currentQuestionIndex);
+            } else if (currentModuleIndex > 0) {
+                // Move to last question of previous module
+                currentModuleIndex--;
+                currentQuestionIndex = quizData[currentModuleIndex].questions.length - 1; // Set to last question of previous module
+                displayModule(currentModuleIndex); // This will call displayQuestion internally
+            }
+        }
+
+        // Submit Quiz and show results
+        function submitQuiz() {
+            isExamActive = false; // Deactivate exam mode features
+            clearInterval(timerInterval); // Stop timer
+            stopWebcam(); // Stop webcam feed
+
+            modulesContainer.classList.add('hidden'); // Hide modules
+            quizHeader.classList.add('hidden'); // Hide header
+            landingScreen.classList.add('hidden'); // Hide landing
+            prevBtn.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            submitBtn.classList.add('hidden');
+            resultsSection.style.display = 'block'; // Show results
+
+            let totalScore = 0;
+            let totalQuestions = 0;
+            resultsDetailsElem.innerHTML = ''; // Clear previous results
+
+            quizData.forEach(module => {
+                module.questions.forEach(q => {
+                    totalQuestions++;
+                    const questionId = `${module.id}-q${q.qNum}`;
+                    const userAnswerLetter = userAnswers[questionId]; // This will be 'a', 'b', 'c', or 'd'
+                    const isCorrect = (userAnswerLetter === q.correct);
+
+                    if (isCorrect) {
+                        totalScore++;
+                    }
+
+                    // Get the text of the user's selected option for display
+                    const userAnswerText = userAnswerLetter ? q.options[userAnswerLetter.charCodeAt(0) - 97] : 'Not Answered';
+                    // Get the text of the correct option for display
+                    const correctOptionText = q.options[q.correct.charCodeAt(0) - 97];
+
+                    resultsDetailsElem.innerHTML += `
+                        <div class="result-item ${isCorrect ? 'correct-answer' : 'incorrect-answer'}">
+                            <p class="font-semibold text-gray-800">Q${q.qNum}. ${q.text}</p>
+                            <p class="text-sm mt-1">Your Answer: <span class="${isCorrect ? 'text-green-700' : 'text-red-700'} font-medium">${userAnswerLetter ? `${userAnswerLetter}) ${userAnswerText}` : 'Not Answered'}</span></p>
+                            <p class="text-sm">Correct Answer: <span class="text-green-700 font-medium">${q.correct}) ${correctOptionText}</span></p>
+                        </div>
+                    `;
+                });
+            });
+
+            totalScoreElem.textContent = totalScore;
+            totalQuestionsElem.textContent = totalQuestions;
+        }
+
+        // Restart Quiz
+        function restartQuiz() {
+            currentModuleIndex = 0;
+            currentQuestionIndex = 0; // Reset question index
+            userAnswers = {}; // Clear user's answers
+            warningCount = 0; // Reset warnings
+            webcamFeed.style.display = 'none'; // Ensure webcam is off and hidden
+            stopWebcam(); // Ensure webcam stream is stopped
+
+            resultsSection.style.display = 'none';
+            landingScreen.style.display = 'flex'; // Show landing screen
+            modulesContainer.classList.add('hidden'); // Hide modules
+            quizHeader.classList.add('hidden'); // Hide header
+            document.querySelectorAll('input[type="radio"]').forEach(radio => radio.checked = false); // Clear all radio selections
+            // Exit fullscreen if still in it
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.error("Error exiting fullscreen:", err));
+            }
+            // Re-render questions to clear any previous selections from the DOM (important for radio buttons)
+            initializeQuizContent();
+        }
+
+        // --- Event Listeners ---
+        startExamBtn.addEventListener('click', () => {
+            landingScreen.style.display = 'none';
+            quizHeader.classList.remove('hidden');
+            modulesContainer.classList.remove('hidden');
+            document.getElementById('quiz-navigation').classList.remove('hidden'); // Show navigation buttons
+
+            isExamActive = true;
+            enterFullscreen();
+            startWebcam();
+            displayModule(currentModuleIndex); // Start displaying the first module (and its first question)
+        });
+
+        warningOkBtn.addEventListener('click', () => {
+            warningOverlay.style.display = 'none';
+            // Attempt to re-enter fullscreen if it was exited
+            if (!document.fullscreenElement) {
+                enterFullscreen();
+            }
+        });
+
+        nextBtn.addEventListener('click', nextModule);
+        prevBtn.addEventListener('click', prevModule);
+        submitBtn.addEventListener('click', submitQuiz);
+        restartQuizBtn.addEventListener('click', restartQuiz);
+
+        // Proctoring event listeners
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', () => {
+            if (isExamActive && warningOverlay.style.display === 'flex') {
+                // If warning is active and window gets focus back, dismiss warning
+                warningOverlay.style.display = 'none';
+            }
+        });
+
+        // Initial setup
+        initializeQuizContent(); // Render all questions into their respective hidden divs on load
+    </script>
+</body>
+</html>
